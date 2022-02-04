@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  - push
+  - pull_request
+
+jobs:
+  test:
+    name: Test
+    runs-on: ${{ matrix.os }}
+    strategy:
+      # Always run main branch builds to completion.
+      fail-fast: ${{ github.event_name == 'pull_request' ||
+        (github.ref != 'refs/heads/main' &&
+        !startsWith(github.ref, 'refs/tags/')) }}
+      matrix:
+        os:
+          - macos-latest
+          - windows-latest
+          - ubuntu-latest
+
+    env:
+      DOTNET_NOLOGO: 'true'
+      DOTNET_CLI_TELEMETRY_OPTOUT: 'true'
+      DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 'true'
+
+    steps:
+      - name: ⏬ Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: 🔽 Setup dotnet 2.1
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: '2.1.x'
+
+      - name: 🔽 Setup dotnet 3.1
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: '3.1.x'
+
+      - name: 🔽 Setup dotnet from global.json
+        uses: actions/setup-dotnet@v1
+
+      - name: 🔍 Print dotnet info
+        run: dotnet --info
+
+      - id: version
+        name: 🔍 Determine Version
+        shell: bash
+        run: |
+          VERSION=$(cat version.txt)
+          echo "VERSION: '$VERSION'"
+          echo "::set-output name=version::$VERSION"
+
+      - name: 🔽 Restore
+        run: dotnet restore -p:Configuration=Release
+
+      - name: 🔨 Build
+        run: dotnet build --configuration Release
+
+      - name: 🧪 Test
+        run: dotnet test --no-build --configuration Release
